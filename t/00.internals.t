@@ -49,8 +49,8 @@ my %data = (
 	   );
 
 for $a (keys %data) {
-  is(Tie::Cvs::norm($a),$data{$a});
-  is(Tie::Cvs::norminv(Tie::Cvs::norm($a)), $a)
+  is(Tie::Cvs::_norm($a),$data{$a});
+  is(Tie::Cvs::_norminv(Tie::Cvs::_norm($a)), $a)
 }
 
 

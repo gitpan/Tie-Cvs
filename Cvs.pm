@@ -7,11 +7,13 @@ use Carp;
 
 require Exporter;
 
+use Data::Dumper;
+
 our @ISA = qw(Exporter);
 our %EXPORT_TAGS = ( 'all' => [ qw( ) ] );
 our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT = qw( );
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 my $DEBUG=0;
 
@@ -31,10 +33,10 @@ sub TIEHASH {
     mkdir("$dir.co") ;
 
     # Initialize the CVS directory
-    mysystem("cvs -d $dir -Q init");
+    _mysystem("cvs -d $dir -Q init");
 
     # Check-out CVS directory (empty, hopefully)
-    mysystem("cd $dir.co; cvs -d $dir -Q co .");
+    _mysystem("cd $dir.co; cvs -d $dir -Q co .");
 
     # Create a file for previous deleted versions
     open DEL, ">$dir.co/CVSROOT/tiecvs.deleted" or croak "foo\n";
@@ -42,11 +44,10 @@ sub TIEHASH {
     close DEL;
 
     # Add the created file
-    mysystem("cd $dir.co/CVSROOT; cvs -Q add tiecvs.deleted;
-              cvs ci -m 'created and added by Tie::Cvs' tiecvs.deleted");
+    _mysystem("cd $dir.co/CVSROOT; cvs -Q add tiecvs.deleted; cvs ci -m 'created and added by Tie::Cvs' tiecvs.deleted");
   } else {
     # update the CVS checkout directory
-    mysystem("cd $dir.co; cvs -Q update");
+    _mysystem("cd $dir.co; cvs -Q update");
 
     # read the tiecvs.deleted file and create cache
     open DEL, "$dir.co/CVSROOT/tiecvs.deleted" or croak "Cannot open tiecvs.deleted file\n";
@@ -72,13 +73,13 @@ sub TIEHASH {
 
 sub FETCH {
   my $self = shift;
-  my $file = $self->{copia}."/".norm(shift(@_));
-  return (-f $file)?cat($file):undef;
+  my $file = $self->{copia}."/"._norm(shift(@_));
+  return (-f $file)?_cat($file):undef;
 }
 
 sub STORE {
   my ($self,$key,$value) = @_;
-  $key = norm($key);
+  $key = _norm($key);
 
   my $cop = $self->{copia};
   my $ex = (-f "$cop/$key");
@@ -89,16 +90,16 @@ sub STORE {
   chmod($self->{'chmod'},"$cop/$key");
 
   if ($ex) {
-    mysystem("cd $cop; cvs -Q update; cvs -Q ci -m 'changed by tie' $key")
+    _mysystem("cd $cop; cvs -Q update; cvs -Q ci -m 'changed by tie' $key")
   } else {
-    mysystem("cd $cop; cvs -Q add $key; cvs -Q ci -m 'added by tie' $key")
+    _mysystem("cd $cop; cvs -Q add $key; cvs -Q ci -m 'added by tie' $key")
   }
   $value
 }
 
 sub DELETE {
   my $self = shift;
-  my $key = norm(shift(@_));
+  my $key = _norm(shift(@_));
   my $cop = $self->{copia};
   my $ex = (-f "$cop/$key");
 
@@ -117,14 +118,14 @@ sub DELETE {
     @delvers = @{$self->{deleted}{$key}} if exists $self->{deleted}{$key};
 
     # Rollback our version
-    $v = roll_back($pv, @delvers);
+    $v = _roll_back($pv, @delvers);
 
     # Add each one of the versions to the deleted ones, if it exists
     push @{$self->{deleted}{$key}}, $pv if $pv;
     push @{$self->{deleted}{$key}}, $v  if $v;
 
     # Save deleted versions file
-    $self->save_deleted();
+    $self->_save_deleted();
 
     # debug...
     print STDERR "** ROLLBACK FROM $pv TO $v\n" if $DEBUG;
@@ -133,20 +134,17 @@ sub DELETE {
     # If there is still a version...
     if ($v) {
       # rollback
-      mysystem("cd $cop;
-                cvs -Q update -j $pv -j $v $key;
-                cvs -Q ci -m 'rollback by tie' $key");
+      _mysystem("cd $cop; cvs -Q update -j $pv -j $v $key; cvs -Q ci -m 'rollback by tie' $key");
     } else {
       # remove file
       unlink("$cop/$key");
-      mysystem("cd $cop;
-                cvs -Q remove $key; cvs -Q ci -m 'del by tie' $key");
+      _mysystem("cd $cop; cvs -Q remove $key; cvs -Q ci -m 'del by tie' $key");
     }
   }
   return $ex
 }
 
-sub roll_back {
+sub _roll_back {
   my ($v, @delvers) = @_;
   return $v unless $v;
 
@@ -164,7 +162,7 @@ sub CLEAR {
 
 sub EXISTS   {
   my $self = shift;
-  my $key = norm(shift(@_));
+  my $key = _norm(shift(@_));
   return (-f "$self->{copia}/$key")
 }
 
@@ -174,7 +172,7 @@ sub FIRSTKEY {
   $self->{keys} = [map { s{.*/}{} ; $_ } grep {-f $_ } < $cop/* > ];
   my $key = shift @{$self->{keys}};
 
-  return (wantarray)?( norminv($key), $self->FETCH($key)):norminv($key)
+  return (wantarray)?( _norminv($key), $self->FETCH($key)):_norminv($key)
 }
 
 
@@ -183,7 +181,7 @@ sub NEXTKEY  {
   my $key = shift @{$self->{keys}};
 
   if ($key){
-    return (wantarray)?( norminv($key), $self->FETCH($key)):norminv($key);
+    return (wantarray)?( _norminv($key), $self->FETCH($key)):_norminv($key);
   } else {
     return undef
   }
@@ -194,7 +192,7 @@ sub DESTROY  {
   # Here we do not need to do anything at all!
 }
 
-sub norm {
+sub _norm {
   my $str = shift;
   return '%CVS' if $str eq "CVS";
   return '%CVSROOT' if $str eq "CVSROOT";
@@ -208,7 +206,7 @@ sub norm {
   $str
 }
 
-sub norminv {
+sub _norminv {
   my $str = shift;
   return 'CVS' if $str eq "%CVS";
   return 'CVSROOT' if $str eq "%CVSROOT";
@@ -223,7 +221,7 @@ sub norminv {
   $str;
 }
 
-sub cat {
+sub _cat {
   my $file = shift;
   my $text;
   local $/;
@@ -233,14 +231,14 @@ sub cat {
   return $text
 }
 
-sub mysystem {
+sub _mysystem {
   my $cmd = shift;
   print STDERR "** EXECUTING: $cmd\n" if $DEBUG;
   ##system($cmd);
   `$cmd`;
 }
 
-sub save_deleted {
+sub _save_deleted {
   my $self = shift;
   open DEL, "> $self->{copia}/CVSROOT/tiecvs.deleted" or croak "Cannot create tiecvs.deleted file: $!\n";
   print DEL "## DELETED VERSIONS FROM TIE::CVS\n";
@@ -248,8 +246,7 @@ sub save_deleted {
     print DEL "$_ ",join(" ",@{$self->{deleted}{$_}}),"\n";
   }
   close DEL;
-  mysystem("cd $self->{copia}/CVSROOT; cvs -Q update tiecvs.deleted;
-            cvs -Q ci -m 'created' tiecvs.deleted");
+  _mysystem("cd $self->{copia}/CVSROOT; cvs -Q update tiecvs.deleted; cvs -Q ci -m 'created' tiecvs.deleted");
 }
 
 1;
@@ -286,6 +283,48 @@ like:
 
   while(delete($cvs{$key})) {}
 
+=head1 METHODS
+
+The defined methods are the standard for tie modules.
+
+=head2 TIEHASH
+
+Used to tie to the cvs, is used when you do
+
+   tie %cvs, 'Tie::Cvs', "/root/mycvsroot";
+
+=head2 STORE
+
+Used to store a key, when you do
+
+  $cvs{foo} = "bar";
+
+=head2 FETCH
+
+Used to retrieve the value for a key:
+
+  $bar = $cvs{foo};
+
+=head2 FIRSTKEY
+
+Used when you use the C<keys> on the hash, to retrieve the first key.
+
+=head2 NEXTKEY
+
+Used when you use the C<keys> on the hash, to retrieve the next key.
+
+=head2 EXISTS
+
+Used when you call C<exists> over a key
+
+=head2 DELETE
+
+Used to rollback a value;
+
+=head2 CLEAR
+
+Not yet used...
+
 =head1 SEE ALSO
 
 perltie
@@ -297,7 +336,7 @@ Alberto Manuel B. Simões, E<lt>albie@alfarrabio.di.uminho.ptE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright 2003 by Projecto Natura
+Copyright 2003-2005 by Projecto Natura
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.

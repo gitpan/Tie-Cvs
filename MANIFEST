@@ -3,7 +3,9 @@ Cvs.pm
 Makefile.PL
 MANIFEST
 README
-t/1.t
-t/2.t.demorado
-t/3.t.demorado
 META.yml                                 Module meta-data (added by MakeMaker)
+t/00.internals.t
+t/01.simple.t
+t/02.simple.t
+t/pod.t
+t/pod-coverage.t

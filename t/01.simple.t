@@ -1,6 +1,6 @@
 # -*- cperl -*-
 
-use Test::More tests => 2 + 50 ;
+use Test::More tests => 2 + 25 ;
 
 BEGIN { use_ok('Tie::Cvs') }
 
@@ -11,7 +11,7 @@ BEGIN { use_ok('Tie::Cvs') }
 my %tie;
 tie %tie, 'Tie::Cvs', "/tmp/tmpcvs";
 
-for(1..50) {
+for(1..25) {
   $tie{"chave $_"} = "Valor de $_$_$_\n";
   ok(1); 			# para mostrar progresso
 }
@@ -24,4 +24,6 @@ $l = 0;
 open R, "_out";
 while(<R>) { $l++ }
 close R;
-is($l,150);
+is($l,75);
+
+unlink "_out";

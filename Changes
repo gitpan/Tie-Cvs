@@ -1,0 +1,8 @@
+Revision history for Perl extension Tie::Cvs.
+
+0.01  Thu Oct  8 08:51:53 2003
+	- original version; created by h2xs 1.22 with options
+		-A -X -c -b 5.6.0 -n Tie::Cvs
+	- basic functionality
+	- added tests for norm/norminv;
+	- added some stress tests;

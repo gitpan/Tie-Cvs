@@ -1,0 +1,9 @@
+Changes
+Cvs.pm
+Makefile.PL
+MANIFEST
+README
+t/1.t
+t/2.t.demorado
+t/3.t.demorado
+META.yml                                 Module meta-data (added by MakeMaker)

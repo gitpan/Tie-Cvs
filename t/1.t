@@ -1,6 +1,6 @@
 # -*- cperl -*-
 
-use Test::More tests => 1 + 2 * 18;
+use Test::More tests => 1 + 2 * 25;
 
 BEGIN { use_ok('Tie::Cvs') }
 
@@ -11,32 +11,41 @@ my %data = (
 	    "teste"       => "teste",
 
 	    # SPACE
-	    "foo bar"     => 'foo%spacebar',
-            ' '           => '%space',
+	    "foo bar"     => 'foo_bar',
+            ' '           => '_',
+
+	    # UNDERSCORE
+	    '_'           => '%_',
+	    '%_'          => '%%%_',
+	    ' _'          => '_%_',
+	    '_ '          => '%__',
+	    '  '          => '__',
+	    '__'          => '%_%_',
+	    ' % _% %_'    => '_%%_%_%%_%%%_',
 
 	    # PERCENT
-	    "foo%bar"     => 'foo%percentbar',
-	    "foo%percent" => 'foo%percentpercent',
-	    "foo %"       => 'foo%space%percent',
-            "%"           => '%percent',
+	    'foo%bar'     => 'foo%%bar',
+	    'foo%percent' => 'foo%%percent',
+	    'foo %'       => 'foo_%%',
+            '%'           => '%%',
 
 	    # SLASH
-            "foo/bar"     => 'foo%slashbar',
-            '/'           => '%slash',
-	    '%slash'      => '%percentslash',
+            'foo/bar'     => 'foo%sbar',
+            '/'           => '%s',
+	    '%slash'      => '%%slash',
 
 	    # CVS e CVSROOT
 	    'CVS'         => '%CVS',
 	    'CVSROOT'     => '%CVSROOT',
-	    ' CVS'        => '%spaceCVS',
+	    ' CVS'        => '_CVS',
             'aCVS'        => 'aCVS',
-            '%CVS'        => '%percentCVS',
-            '%CVSROOT'    => '%percentCVSROOT',
+            '%CVS'        => '%%CVS',
+            '%CVSROOT'    => '%%CVSROOT',
 	    # TAB
-            "\t"          => '%tab',
+            "\t"          => '%t',
 
 	    # MISC
-	    " %/\t"         => '%space%percent%slash%tab',
+	    " %/\t"         => '_%%%s%t',
 	   );
 
 for $a (keys %data) {

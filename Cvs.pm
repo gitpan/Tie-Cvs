@@ -11,13 +11,14 @@ our @ISA = qw(Exporter);
 our %EXPORT_TAGS = ( 'all' => [ qw( ) ] );
 our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT = qw( );
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 my $DEBUG=0;
 
 sub TIEHASH {
   my $class = shift;
-  my $dir = shift || croak "usage: Tie::Cvs DIR";
+  my $dir = shift || croak "usage: Tie::Cvs DIR [permission]";
+  my $chmod = shift || 0644;
 
   my %del_versions = ();
 
@@ -63,6 +64,7 @@ sub TIEHASH {
   # create our object and return it
   my $self = { copia    => "$dir.co",
                deleted => \%del_versions,
+               chmod => $chmod,
                dir      => $dir, };
   return bless $self, $class;
 }
@@ -84,6 +86,7 @@ sub STORE {
   open(F, "> $cop/$key") || croak "can't open $cop/$key: $!";
   print F $value;
   close(F);
+  chmod($self->{'chmod'},"$cop/$key");
 
   if ($ex) {
     mysystem("cd $cop; cvs -Q update; cvs -Q ci -m 'changed by tie' $key")
@@ -196,10 +199,11 @@ sub norm {
   return '%CVS' if $str eq "CVS";
   return '%CVSROOT' if $str eq "CVSROOT";
   for ($str) {
-    s/\%/%percent/g;
-    s/\ /%space/g;
-    s/\t/%tab/g;
-    s/\//%slash/g;
+    s/\%/\%\%/g;
+    s/_/\%_/g;
+    s/\ /_/g;
+    s/\t/\%t/g;
+    s/\//\%s/g;
   }
   $str
 }
@@ -209,10 +213,12 @@ sub norminv {
   return 'CVS' if $str eq "%CVS";
   return 'CVSROOT' if $str eq "%CVSROOT";
   for ($str) {
-    s/%space/ /g;
-    s/%slash/\//g;
-    s/%tab/\t/g;
-    s/%percent/%/g;
+    s/\%\%/\x01/g;
+    s/\%s/\//g;
+    s/\%t/\t/g;
+    s/(?<!%)_/ /g;
+    s/\%_/_/g;
+    s/\x01/\%/g;
   }
   $str;
 }
@@ -230,7 +236,8 @@ sub cat {
 sub mysystem {
   my $cmd = shift;
   print STDERR "** EXECUTING: $cmd\n" if $DEBUG;
-  system($cmd);
+  ##system($cmd);
+  `$cmd`;
 }
 
 sub save_deleted {

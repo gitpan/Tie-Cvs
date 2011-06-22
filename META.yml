@@ -1,10 +1,24 @@
-# http://module-build.sourceforge.net/META-spec.html
-#XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
-name:         Tie-Cvs
-version:      0.03
-version_from: Cvs.pm
-installdirs:  site
+---
+abstract: 'Perl extension to tie Hashes to CVS trees'
+author:
+  - 'Alberto Simoes <ambs@cpan.org>'
+build_requires: {}
+configure_requires:
+  Config::AutoConf: 0.16
+  Module::Build: 0.38
+dynamic_config: 1
+generated_by: 'Module::Build version 0.38, CPAN::Meta::Converter version 2.110930'
+license: perl
+meta-spec:
+  url: http://module-build.sourceforge.net/META-spec-v1.4.html
+  version: 1.4
+name: Tie-Cvs
+provides:
+  Tie::Cvs:
+    file: lib/Tie/Cvs.pm
+    version: 0.04
 requires:
-
-distribution_type: module
-generated_by: ExtUtils::MakeMaker version 6.17
+  Test::More: 0
+resources:
+  license: http://dev.perl.org/licenses/
+version: 0.04

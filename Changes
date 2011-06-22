@@ -1,5 +1,8 @@
 Revision history for Perl extension Tie::Cvs.
 
+0.04  Wed Jun 22 19:09:19 2011
+      - Better cvs discovery, and hopefully, bail out from testers without cvs.
+
 0.03  Thu Mar 31 15:45:00 2005
 	- Added documentation
 	- changed tests

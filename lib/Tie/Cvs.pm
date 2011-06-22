@@ -1,4 +1,5 @@
 package Tie::Cvs;
+use Tie::Cvs::ConfigData;
 
 use 5.006;
 use strict;
@@ -13,13 +14,18 @@ our @ISA = qw(Exporter);
 our %EXPORT_TAGS = ( 'all' => [ qw( ) ] );
 our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT = qw( );
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 my $DEBUG=0;
 
+our $CVS;
+BEGIN {
+    $CVS = Tie::Cvs::ConfigData->config("cvs");
+}
+
 sub TIEHASH {
   my $class = shift;
-  my $dir = shift || croak "usage: Tie::Cvs DIR [permission]";
+  my $dir   = shift || croak "usage: Tie::Cvs DIR [permission]";
   my $chmod = shift || 0644;
 
   my %del_versions = ();
@@ -33,10 +39,10 @@ sub TIEHASH {
     mkdir("$dir.co") ;
 
     # Initialize the CVS directory
-    _mysystem("cvs -d $dir -Q init");
+    _mysystem("$CVS -d $dir -Q init");
 
     # Check-out CVS directory (empty, hopefully)
-    _mysystem("cd $dir.co; cvs -d $dir -Q co .");
+    _mysystem("cd $dir.co; $CVS -d $dir -Q co .");
 
     # Create a file for previous deleted versions
     open DEL, ">$dir.co/CVSROOT/tiecvs.deleted" or croak "foo\n";
@@ -44,10 +50,10 @@ sub TIEHASH {
     close DEL;
 
     # Add the created file
-    _mysystem("cd $dir.co/CVSROOT; cvs -Q add tiecvs.deleted; cvs ci -m 'created and added by Tie::Cvs' tiecvs.deleted");
+    _mysystem("cd $dir.co/CVSROOT; $CVS -Q add tiecvs.deleted; $CVS ci -m 'created and added by Tie::Cvs' tiecvs.deleted");
   } else {
     # update the CVS checkout directory
-    _mysystem("cd $dir.co; cvs -Q update");
+    _mysystem("cd $dir.co; $CVS -Q update");
 
     # read the tiecvs.deleted file and create cache
     open DEL, "$dir.co/CVSROOT/tiecvs.deleted" or croak "Cannot open tiecvs.deleted file\n";
@@ -73,13 +79,13 @@ sub TIEHASH {
 
 sub FETCH {
   my $self = shift;
-  my $file = $self->{copia}."/"._norm(shift(@_));
+  my $file = $self->{copia}."/".norm(shift(@_));
   return (-f $file)?_cat($file):undef;
 }
 
 sub STORE {
   my ($self,$key,$value) = @_;
-  $key = _norm($key);
+  $key = norm($key);
 
   my $cop = $self->{copia};
   my $ex = (-f "$cop/$key");
@@ -90,16 +96,16 @@ sub STORE {
   chmod($self->{'chmod'},"$cop/$key");
 
   if ($ex) {
-    _mysystem("cd $cop; cvs -Q update; cvs -Q ci -m 'changed by tie' $key")
+    _mysystem("cd $cop; $CVS -Q update; $CVS -Q ci -m 'changed by tie' $key")
   } else {
-    _mysystem("cd $cop; cvs -Q add $key; cvs -Q ci -m 'added by tie' $key")
+    _mysystem("cd $cop; $CVS -Q add $key; $CVS -Q ci -m 'added by tie' $key")
   }
   $value
 }
 
 sub DELETE {
   my $self = shift;
-  my $key = _norm(shift(@_));
+  my $key = norm(shift(@_));
   my $cop = $self->{copia};
   my $ex = (-f "$cop/$key");
 
@@ -134,11 +140,11 @@ sub DELETE {
     # If there is still a version...
     if ($v) {
       # rollback
-      _mysystem("cd $cop; cvs -Q update -j $pv -j $v $key; cvs -Q ci -m 'rollback by tie' $key");
+      _mysystem("cd $cop; $CVS -Q update -j $pv -j $v $key; $CVS -Q ci -m 'rollback by tie' $key");
     } else {
       # remove file
       unlink("$cop/$key");
-      _mysystem("cd $cop; cvs -Q remove $key; cvs -Q ci -m 'del by tie' $key");
+      _mysystem("cd $cop; $CVS -Q remove $key; $CVS -Q ci -m 'del by tie' $key");
     }
   }
   return $ex
@@ -162,7 +168,7 @@ sub CLEAR {
 
 sub EXISTS   {
   my $self = shift;
-  my $key = _norm(shift(@_));
+  my $key = norm(shift(@_));
   return (-f "$self->{copia}/$key")
 }
 
@@ -172,7 +178,7 @@ sub FIRSTKEY {
   $self->{keys} = [map { s{.*/}{} ; $_ } grep {-f $_ } < $cop/* > ];
   my $key = shift @{$self->{keys}};
 
-  return (wantarray)?( _norminv($key), $self->FETCH($key)):_norminv($key)
+  return (wantarray)?( norminv($key), $self->FETCH($key)):norminv($key)
 }
 
 
@@ -181,7 +187,7 @@ sub NEXTKEY  {
   my $key = shift @{$self->{keys}};
 
   if ($key){
-    return (wantarray)?( _norminv($key), $self->FETCH($key)):_norminv($key);
+    return (wantarray)?( norminv($key), $self->FETCH($key)):norminv($key);
   } else {
     return undef
   }
@@ -192,7 +198,7 @@ sub DESTROY  {
   # Here we do not need to do anything at all!
 }
 
-sub _norm {
+sub norm {
   my $str = shift;
   return '%CVS' if $str eq "CVS";
   return '%CVSROOT' if $str eq "CVSROOT";
@@ -206,7 +212,7 @@ sub _norm {
   $str
 }
 
-sub _norminv {
+sub norminv {
   my $str = shift;
   return 'CVS' if $str eq "%CVS";
   return 'CVSROOT' if $str eq "%CVSROOT";
@@ -246,7 +252,7 @@ sub _save_deleted {
     print DEL "$_ ",join(" ",@{$self->{deleted}{$_}}),"\n";
   }
   close DEL;
-  _mysystem("cd $self->{copia}/CVSROOT; cvs -Q update tiecvs.deleted; cvs -Q ci -m 'created' tiecvs.deleted");
+  _mysystem("cd $self->{copia}/CVSROOT; $CVS -Q update tiecvs.deleted; $CVS -Q ci -m 'created' tiecvs.deleted");
 }
 
 1;
@@ -320,6 +326,14 @@ Used when you call C<exists> over a key
 =head2 DELETE
 
 Used to rollback a value;
+
+=head2 norm
+
+Used to built a normalised proper filename from a name.
+
+=head2 norminv
+
+Used to built obtain the name from the normalised filename.
 
 =head2 CLEAR
 
